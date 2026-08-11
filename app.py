@@ -1,32 +1,52 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+
+from flask import Flask, request, redirect, url_for, session, render_template
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
-from config import Config
 from dotenv import load_dotenv
 import boto3
 import os
 import io
+
+load_dotenv()
+
+from config import Config
+
+# -----------------------------
+# Flask Configuration
+# -----------------------------
+
+app = Flask(__name__)
+
+app.config.from_object(Config)
+
+mysql = MySQL(app)
+
+s3 = boto3.client(
+    "s3",
+    region_name="ap-south-1"
+)
+
+BUCKET_NAME = "praneeth-cloud-storage"
 
 # -----------------------------
 # Flask Configuration
 # -----------------------------
 app = Flask(__name__)
 
-load_dotenv()
-
 app.config.from_object(Config)
 
 mysql = MySQL(app)
 
-# -----------------------------
-# AWS S3 Configuration
-# -----------------------------
 s3 = boto3.client(
     "s3",
+<<<<<<< HEAD
     region_name=os.getenv("AWS_REGION")
+=======
+    region_name="ap-south-1"
+>>>>>>> e560bec519b811958e36c1636dd8ec2b0eaf2deb
 )
 
-BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
+BUCKET_NAME = "praneeth-cloud-storage"
 
 # -----------------------------
 # Home
@@ -147,11 +167,16 @@ def upload():
         return redirect(url_for("login"))
 
     uploaded_file = request.files["file"]
+    print("FILES RECEIVED:", request.files)
 
-    if uploaded_file.filename == "":
+    if not uploaded_file or uploaded_file.filename== "":
         return "No file selected."
 
     try:
+
+        uploaded_file.seek(0, os.SEEK_END)
+        file_size = uploaded_file.tell()
+        uploaded_file.seek(0)
 
         # Upload to S3
         s3.upload_fileobj(
@@ -176,7 +201,7 @@ def upload():
             uploaded_file.filename,
             uploaded_file.filename,
             uploaded_file.filename,
-            uploaded_file.content_length,
+            file_size,
             uploaded_file.content_type,
             session["user_id"]
         ))
@@ -187,6 +212,9 @@ def upload():
         return redirect(url_for("dashboard"))
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return str(e), 500    
         return str(e)
 
 # -----------------------------
@@ -304,4 +332,7 @@ def test_s3():
 # Run App
 # -----------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
+
+
+

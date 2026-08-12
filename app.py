@@ -39,7 +39,11 @@ mysql = MySQL(app)
 
 s3 = boto3.client(
     "s3",
+<<<<<<< HEAD
+    region_name=os.getenv("AWS_REGION")
+=======
     region_name="ap-south-1"
+>>>>>>> e560bec519b811958e36c1636dd8ec2b0eaf2deb
 )
 
 BUCKET_NAME = "praneeth-cloud-storage"

@@ -50,5 +50,6 @@ jobs:
             source venv/bin/activate
 
             pip install -r requirements.txt
+            python app.py
 
             sudo systemctl restart apache2

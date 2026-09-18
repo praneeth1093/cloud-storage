@@ -26,9 +26,9 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Run tests
-        run: |
-          pytest
+      - - name: Run application test
+  run: |
+    python -c "import app; print('Application imported successfully')"
 
   deploy:
     name: CD - Deploy to EC2

@@ -245,6 +245,8 @@ Possible improvements for the project include:
 * CI/CD deployment using GitHub Actions
 * Deploying the application to AWS
 
+CI/CD deployment test
+
 ## 👨‍💻 Author
 
 **Praneeth Vakamullu**

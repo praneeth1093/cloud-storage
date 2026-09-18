@@ -1,16 +1,18 @@
-
-from flask import Flask, request, redirect, url_for, session, render_template
+from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
+from config import Config
 from dotenv import load_dotenv
 import boto3
 import os
 import io
 
+# -----------------------------
+# Load Environment Variables
+# -----------------------------
+
 load_dotenv()
 
-from config import Config
-
 # -----------------------------
 # Flask Configuration
 # -----------------------------
@@ -21,43 +23,30 @@ app.config.from_object(Config)
 
 mysql = MySQL(app)
 
-s3 = boto3.client(
-    "s3",
-    region_name="ap-south-1"
-)
-
-BUCKET_NAME = "praneeth-cloud-storage"
-
 # -----------------------------
-# Flask Configuration
+# AWS S3 Configuration
 # -----------------------------
-app = Flask(__name__)
-
-app.config.from_object(Config)
-
-mysql = MySQL(app)
 
 s3 = boto3.client(
     "s3",
-<<<<<<< HEAD
-    region_name=os.getenv("AWS_REGION")
-=======
-    region_name="ap-south-1"
->>>>>>> e560bec519b811958e36c1636dd8ec2b0eaf2deb
+    region_name=os.getenv("AWS_REGION", "ap-south-1")
 )
 
-BUCKET_NAME = "praneeth-cloud-storage"
+BUCKET_NAME = os.getenv("AWS_BUCKET_NAME", "praneeth-cloud-storage")
 
 # -----------------------------
 # Home
 # -----------------------------
+
 @app.route("/")
 def home():
     return render_template("home.html")
 
+
 # -----------------------------
 # Register
 # -----------------------------
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
 
@@ -83,7 +72,7 @@ def register():
         hashed_password = generate_password_hash(password)
 
         cursor.execute(
-            "INSERT INTO users(name,email,password) VALUES(%s,%s,%s)",
+            "INSERT INTO users(name, email, password) VALUES(%s, %s, %s)",
             (name, email, hashed_password)
         )
 
@@ -94,9 +83,11 @@ def register():
 
     return render_template("register.html")
 
+
 # -----------------------------
 # Login
 # -----------------------------
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
@@ -127,9 +118,11 @@ def login():
 
     return render_template("login.html")
 
+
 # -----------------------------
 # Dashboard
 # -----------------------------
+
 @app.route("/dashboard")
 def dashboard():
 
@@ -157,28 +150,25 @@ def dashboard():
         files=files
     )
 
+
 # -----------------------------
 # Upload File
 # -----------------------------
+
 @app.route("/upload", methods=["POST"])
 def upload():
 
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    uploaded_file = request.files["file"]
-    print("FILES RECEIVED:", request.files)
+    uploaded_file = request.files.get("file")
 
-    if not uploaded_file or uploaded_file.filename== "":
+    if not uploaded_file or uploaded_file.filename == "":
         return "No file selected."
 
     try:
 
-        uploaded_file.seek(0, os.SEEK_END)
-        file_size = uploaded_file.tell()
-        uploaded_file.seek(0)
-
-        # Upload to S3
+        # Upload file to S3
         s3.upload_fileobj(
             uploaded_file,
             BUCKET_NAME,
@@ -189,19 +179,21 @@ def upload():
 
         cursor.execute("""
             INSERT INTO files
-            (filename,
-             original_filename,
-             s3_key,
-             file_size,
-             file_type,
-             uploaded_by)
-            VALUES(%s,%s,%s,%s,%s,%s)
+            (
+                filename,
+                original_filename,
+                s3_key,
+                file_size,
+                file_type,
+                uploaded_by
+            )
+            VALUES(%s, %s, %s, %s, %s, %s)
         """,
         (
             uploaded_file.filename,
             uploaded_file.filename,
             uploaded_file.filename,
-            file_size,
+            uploaded_file.content_length,
             uploaded_file.content_type,
             session["user_id"]
         ))
@@ -212,14 +204,14 @@ def upload():
         return redirect(url_for("dashboard"))
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return str(e), 500    
+
         return str(e)
+
 
 # -----------------------------
 # Download File
 # -----------------------------
+
 @app.route("/download/<int:file_id>")
 def download(file_id):
 
@@ -262,7 +254,14 @@ def download(file_id):
         )
 
     except Exception as e:
+
         return str(e)
+
+
+# -----------------------------
+# Delete File
+# -----------------------------
+
 @app.route("/delete/<int:file_id>")
 def delete(file_id):
 
@@ -274,7 +273,8 @@ def delete(file_id):
     cursor.execute("""
         SELECT s3_key
         FROM files
-        WHERE id=%s AND uploaded_by=%s
+        WHERE id=%s
+        AND uploaded_by=%s
     """, (file_id, session["user_id"]))
 
     file = cursor.fetchone()
@@ -303,11 +303,15 @@ def delete(file_id):
         return redirect(url_for("dashboard"))
 
     except Exception as e:
+
         cursor.close()
         return str(e)
+
+
 # -----------------------------
 # Logout
 # -----------------------------
+
 @app.route("/logout")
 def logout():
 
@@ -315,24 +319,28 @@ def logout():
 
     return redirect(url_for("login"))
 
+
 # -----------------------------
 # Test S3
 # -----------------------------
+
 @app.route("/test-s3")
 def test_s3():
 
     try:
+
         buckets = s3.list_buckets()
+
         return str(buckets["Buckets"])
 
     except Exception as e:
+
         return str(e)
+
 
 # -----------------------------
 # Run App
 # -----------------------------
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-
-
-
+    app.run(debug=True)

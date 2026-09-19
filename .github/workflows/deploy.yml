@@ -1,4 +1,3 @@
-
 name: CI/CD
 
 on:
@@ -43,9 +42,10 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
+
             git fetch origin
             git reset --hard origin/main
-            source venv/bin/activate
-            pip install -r requirements.txt
-            sudo systemctl restart httpd
 
+            /var/www/html/cloud-storage/venv/bin/pip install -r requirements.txt
+
+            sudo systemctl restart cloud-storage.service

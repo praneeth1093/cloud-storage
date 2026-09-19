@@ -1,23 +1,55 @@
 # ☁️ Cloud File Storage Web Application
 
-A cloud-based file storage web application built using **Python Flask, MySQL, and AWS S3**. The application allows users to register, log in, upload files, view their uploaded files, download files, and delete files.
+A full-stack cloud-based file storage web application built using **Python Flask, MySQL, and AWS services**. The application allows users to register, log in, upload files, view their stored files, download files, and delete files.
+
+The application is deployed on **AWS EC2**, uses **Amazon S3 for file storage**, **Amazon RDS MySQL for database management**, and **GitHub Actions for CI/CD automation**.
+
+---
 
 ## 🚀 Project Overview
 
-The main goal of this project is to build a simple cloud storage system where the **actual files are stored in Amazon S3**, while **user information and file metadata are stored in MySQL**.
+The main goal of this project is to build a simple and scalable cloud storage system where:
 
-This project helped me understand how a web application can integrate with cloud storage services and manage data between an application, database, and cloud infrastructure.
+* **Amazon S3** stores the actual uploaded files.
+* **Amazon RDS MySQL** stores user information and file metadata.
+* **Flask** handles the application logic and API requests.
+* **Nginx** acts as a reverse proxy.
+* **Gunicorn** runs the Flask application.
+* **Systemd** manages the application service.
+* **GitHub Actions** automates testing and deployment.
+
+This project helped me understand how a web application can integrate with cloud storage, databases, Linux servers, and CI/CD infrastructure.
+
+---
 
 ## 🛠️ Technologies Used
 
-* **Python** – Backend programming
-* **Flask** – Web application framework
-* **MySQL** – Database for users and file metadata
-* **AWS S3** – Cloud storage for uploaded files
-* **Boto3** – Python SDK used to communicate with AWS S3
-* **HTML/CSS** – Frontend
-* **Git & GitHub** – Version control
-* **Environment Variables** – Configuration and sensitive credentials
+### Application
+
+* **Python**
+* **Flask**
+* **Flask-MySQLdb**
+* **Werkzeug**
+* **Boto3**
+* **HTML5**
+* **CSS3**
+
+### AWS
+
+* **Amazon EC2** – Application hosting
+* **Amazon S3** – Cloud file storage
+* **Amazon RDS MySQL** – Relational database
+
+### DevOps
+
+* **Git**
+* **GitHub**
+* **GitHub Actions**
+* **Nginx**
+* **Gunicorn**
+* **Systemd**
+
+---
 
 ## ✨ Features
 
@@ -25,83 +57,301 @@ This project helped me understand how a web application can integrate with cloud
 * 🔐 User Login & Logout
 * 🔑 Password Hashing
 * 📤 File Upload
-* ☁️ Cloud Storage using AWS S3
+* ☁️ Amazon S3 Cloud Storage
 * 📋 View Uploaded Files
 * 📥 Download Files
 * 🗑️ Delete Files
-* 👥 Basic User File Ownership Checks
+* 👥 User-specific file ownership checks
+* 🗄️ MySQL database integration
+* 🌐 Nginx reverse proxy
+* 🚀 Gunicorn application server
+* ⚙️ Systemd service management
+* 🔄 GitHub Actions CI/CD
+* 📱 Responsive user interface
 
-## 🏗️ Architecture
+---
+
+# 🏗️ System Architecture
 
 ```text
-                 ┌──────────────────┐
-                 │      User        │
-                 └────────┬─────────┘
-                          │
-                          ▼
-                 ┌──────────────────┐
-                 │   Flask Web App  │
-                 │     (Python)     │
-                 └───────┬────┬─────┘
-                         │    │
-              ┌──────────┘    └──────────┐
-              ▼                          ▼
-      ┌───────────────┐          ┌───────────────┐
-      │    MySQL      │          │    AWS S3     │
-      │               │          │               │
-      │ Users         │          │ Actual Files  │
-      │ File Metadata │          │               │
-      └───────────────┘          └───────────────┘
+                         ┌─────────────────────┐
+                         │        User         │
+                         │     Web Browser     │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │       Nginx         │
+                         │   Reverse Proxy     │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │      Gunicorn       │
+                         │   Flask Application  │
+                         └──────────┬──────────┘
+                                    │
+                       ┌────────────┴────────────┐
+                       │                         │
+                       ▼                         ▼
+             ┌──────────────────┐      ┌──────────────────┐
+             │   Amazon RDS      │      │    Amazon S3     │
+             │      MySQL       │      │  Cloud Storage   │
+             │                  │      │                  │
+             │ • Users          │      │ • Actual Files   │
+             │ • File Metadata  │      │                  │
+             └──────────────────┘      └──────────────────┘
+
+                         AWS EC2
+                            │
+                            ▼
+                     GitHub Actions
+                            │
+                            ▼
+                    Automated Deployment
 ```
 
-## 🔄 How the Application Works
+---
 
-### 1. User Registration
+# 🔄 How the Application Works
+
+## 1. User Registration
 
 The user provides their name, email, and password.
 
-The password is hashed before being stored in MySQL.
+The password is securely hashed using **Werkzeug** before being stored in the MySQL database.
 
-### 2. User Login
+---
 
-The application verifies the user's email and password and creates a session for the logged-in user.
+## 2. User Login
 
-### 3. File Upload
+The application verifies the user's email and password.
+
+After successful authentication, a session is created for the user and they are redirected to the dashboard.
+
+---
+
+## 3. File Upload
 
 When a user uploads a file:
 
+```text
 User
   ↓
 Flask Application
   ↓
-AWS S3 → Stores the actual file
+Amazon S3
   ↓
-MySQL → Stores file metadata
+Actual File Stored
+  ↓
+Amazon RDS MySQL
+  ↓
+File Metadata Stored
+```
 
+The actual file is stored in **Amazon S3**, while information such as filename, file type, file size, S3 key, and upload time is stored in MySQL.
 
-### 4. File Download
+---
+
+## 4. File Download
 
 When a user downloads a file:
 
+```text
 User
   ↓
 Flask Application
   ↓
-MySQL → Finds file information
+MySQL
   ↓
-AWS S3 → Retrieves actual file
+Find File Metadata
+  ↓
+Amazon S3
+  ↓
+Retrieve File
   ↓
 User
+```
 
-### 5. File Delete
+---
 
-When a user deletes a file, the application removes the file from AWS S3 and removes its metadata from MySQL.
+## 5. File Delete
 
-## 🗄️ Database
+When a user deletes a file:
 
-MySQL is used to store:
+```text
+User
+  ↓
+Flask Application
+  ↓
+Amazon S3
+  ↓
+Delete Actual File
+  ↓
+MySQL
+  ↓
+Delete File Metadata
+```
+
+Both the S3 object and its corresponding database record are removed.
+
+---
+
+# ☁️ AWS Infrastructure
+
+### Amazon EC2
+
+The Flask application is deployed on an **Amazon EC2 Linux server**.
+
+The EC2 instance runs:
+
+* Flask
+* Gunicorn
+* Nginx
+* Systemd
+
+### Amazon S3
+
+Amazon S3 is used for storing the actual uploaded files.
+
+### Amazon RDS
+
+Amazon RDS for MySQL stores:
 
 * User information
+* File metadata
+* File ownership
+* Upload information
+
+---
+
+# 🔄 CI/CD Pipeline
+
+GitHub Actions is used to automate the deployment process.
+
+```text
+Developer
+    │
+    ▼
+Git Push
+    │
+    ▼
+GitHub Repository
+    │
+    ▼
+GitHub Actions
+    │
+    ├── Checkout Code
+    │
+    ├── Setup Python
+    │
+    ├── Install Dependencies
+    │
+    ├── Run Application Test
+    │
+    └── Deploy to EC2
+             │
+             ▼
+       Restart Systemd
+             │
+             ▼
+        Gunicorn
+             │
+             ▼
+          Nginx
+             │
+             ▼
+       Live Application
+```
+
+---
+
+# 📸 Application Screenshots
+
+## 1. Application Home Page
+
+The redesigned CloudVault interface provides a modern and responsive landing page.
+
+![Application Home Page](screenshots/01-application-running.png)
+
+---
+
+## 2. File Upload
+
+Users can select and upload files through the dashboard.
+
+![File Upload](screenshots/02-file-upload.png)
+
+---
+
+## 3. File Management
+
+Uploaded files are displayed in the dashboard with options to download or delete them.
+
+![File Management](screenshots/03-file-management.png)
+
+---
+
+## 4. AWS EC2 Deployment
+
+The application runs as a managed Systemd service on the AWS EC2 instance.
+
+![AWS EC2 Deployment](screenshots/04-aws-ec2-deployment.png)
+
+---
+
+## 5. GitHub Actions CI/CD
+
+GitHub Actions automatically tests and deploys changes to the AWS EC2 server.
+
+![GitHub Actions CI/CD](screenshots/05-github-actions-cicd.png)
+
+---
+
+# 📁 Project Structure
+
+```text
+cloud-storage/
+│
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
+│
+├── static/
+│
+├── templates/
+│   ├── home.html
+│   ├── login.html
+│   ├── register.html
+│   └── dashboard.html
+│
+├── screenshots/
+│   ├── 01-application-running.png
+│   ├── 02-file-upload.png
+│   ├── 03-file-management.png
+│   ├── 04-aws-ec2-deployment.png
+│   └── 05-github-actions-cicd.png
+│
+├── app.py
+├── config.py
+├── requirements.txt
+├── .gitignore
+├── README.md
+└── sample.txt
+```
+
+---
+
+# 🗄️ Database
+
+MySQL is used to store application data and file metadata.
+
+The database contains information such as:
+
+* User ID
+* User name
+* Email
+* Password hash
 * File name
 * Original file name
 * File size
@@ -110,147 +360,180 @@ MySQL is used to store:
 * User who uploaded the file
 * Upload time
 
-## ☁️ Why AWS S3?
+---
 
-AWS S3 is used to store the actual uploaded files instead of storing them directly on the application server.
+# ☁️ Why Amazon S3?
 
-This separates:
+Amazon S3 is used to store uploaded files instead of storing them directly on the application server.
 
-**MySQL → Information about the files**
+This separates application data from file storage:
 
-**AWS S3 → Actual files**
+```text
+Amazon RDS
+    ↓
+Information ABOUT the files
 
-This approach also allows the application to use cloud object storage for user-uploaded files.
+Amazon S3
+    ↓
+ACTUAL uploaded files
+```
 
-## 🔐 Security
+This architecture makes the application easier to manage and allows file storage to be handled separately from the application server.
 
-The project includes basic security features such as:
+---
+
+# 🔐 Security
+
+The project includes several basic security practices:
 
 * Password hashing using Werkzeug
 * Session-based authentication
-* User ownership checks for files
+* User ownership checks
 * Database credentials stored using environment variables
 * Flask secret key stored using environment variables
+* AWS configuration stored using environment variables
+* `.env` excluded from Git using `.gitignore`
 
-## 📁 Project Structure
+> Sensitive credentials such as AWS keys, database passwords, and secret keys are not stored in the GitHub repository.
 
+---
 
-cloud-storage/
-│
-├── .github/
-│   └── workflows/
-│
-├── static/
-│
-├── templates/
-│
-├── app.py
-├── config.py
-├── requirements.txt
-├── .gitignore
-└── sample.txt
-```
+# ⚙️ Local Installation
 
-## ⚙️ Installation & Setup
+## 1. Clone the Repository
 
-### 1. Clone the repository
-
+```bash
 git clone https://github.com/praneeth1093/cloud-storage.git
 cd cloud-storage
 ```
 
-### 2. Create a virtual environment
+## 2. Create a Virtual Environment
 
 ```bash
 python -m venv venv
 ```
 
-Activate it:
+### Windows
 
-**Windows:**
-
-```bash
+```powershell
 venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+### Linux/macOS
+
+```bash
+source venv/bin/activate
+```
+
+## 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+## 4. Configure Environment Variables
 
-Create a `.env` file and configure your database, Flask secret key, and AWS region.
+Create a `.env` file:
 
 ```text
-MYSQL_HOST=your_mysql_host
-MYSQL_USER=your_mysql_user
-MYSQL_PASSWORD=your_mysql_password
-MYSQL_DB=your_database
+MYSQL_HOST=your_database_host
+MYSQL_USER=your_database_user
+MYSQL_PASSWORD=your_database_password
+MYSQL_DB=your_database_name
+
 SECRET_KEY=your_secret_key
+
 AWS_REGION=your_aws_region
+AWS_BUCKET_NAME=your_s3_bucket
 ```
 
-### 5. Configure AWS S3
+Do not commit the `.env` file to GitHub.
 
-Create an S3 bucket in your AWS account and configure AWS credentials using your AWS environment/configuration.
-
-### 6. Run the application
+## 5. Run the Application
 
 ```bash
 python app.py
 ```
 
-The application will run on:
+The application will run at:
 
 ```text
-http://localhost:5000
+http://127.0.0.1:5000
 ```
 
-## 🎯 Challenges Faced
+---
 
-During the development of this project, I worked on:
+# 🎯 Challenges Faced
 
-1. Integrating Flask with AWS S3 using Boto3.
-2. Handling file uploads and downloads between the application and S3.
-3. Managing file metadata separately from the actual files.
-4. Connecting Flask with MySQL.
+During development, I worked on:
+
+1. Integrating Flask with Amazon S3 using Boto3.
+2. Handling file uploads and downloads between Flask and S3.
+3. Managing file metadata separately from actual files.
+4. Connecting Flask with MySQL/RDS.
 5. Implementing user authentication and password hashing.
-6. Ensuring users can access their own uploaded files.
+6. Implementing user-specific file ownership checks.
+7. Deploying the Flask application on AWS EC2.
+8. Configuring Nginx as a reverse proxy.
+9. Running Flask using Gunicorn.
+10. Managing the application using Systemd.
+11. Automating deployment using GitHub Actions.
+12. Managing application configuration using environment variables.
 
-## 📚 What I Learned
+---
+
+# 📚 What I Learned
 
 Through this project, I gained practical experience in:
 
 * Python Flask development
-* AWS S3 cloud storage
+* AWS EC2 deployment
+* Amazon S3
+* Amazon RDS MySQL
 * Boto3
 * MySQL database integration
 * User authentication
 * File upload/download handling
-* Cloud application architecture
+* Linux server management
+* Nginx reverse proxy configuration
+* Gunicorn
+* Systemd
 * Git and GitHub
+* GitHub Actions CI/CD
+* Environment variable management
+* Cloud application architecture
 
-## 🔮 Future Improvements
+---
 
-Possible improvements for the project include:
+# 🔮 Future Improvements
+
+Possible future improvements include:
 
 * File size and file type validation
-* Better error handling
+* Improved error handling
 * AWS IAM-based access control
 * S3 encryption configuration
-* Presigned URLs for file downloads
+* Presigned URLs for downloads
+* File search and filtering
+* Folder support
+* Storage usage tracking
 * Dockerizing the application
-* CI/CD deployment using GitHub Actions
-* Deploying the application to AWS
+* HTTPS/SSL configuration
+* Automated testing
+* Monitoring with CloudWatch
+* Prometheus and Grafana monitoring
 
-CI/CD deployment test
+---
 
-## 👨‍💻 Author
+# 👨‍💻 Author
 
 **Praneeth Vakamullu**
+
+Cloud / DevOps / System Administration Enthusiast
 
 GitHub:
 https://github.com/praneeth1093
 
+---
+
+⭐ If you found this project useful, consider giving it a star!

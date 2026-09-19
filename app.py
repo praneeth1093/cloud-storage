@@ -7,15 +7,17 @@ import boto3
 import os
 import io
 
-# -----------------------------
+
+# ============================================================
 # Load Environment Variables
-# -----------------------------
+# ============================================================
 
 load_dotenv()
 
-# -----------------------------
+
+# ============================================================
 # Flask Configuration
-# -----------------------------
+# ============================================================
 
 app = Flask(__name__)
 
@@ -23,29 +25,34 @@ app.config.from_object(Config)
 
 mysql = MySQL(app)
 
-# -----------------------------
+
+# ============================================================
 # AWS S3 Configuration
-# -----------------------------
+# ============================================================
 
 s3 = boto3.client(
     "s3",
     region_name=os.getenv("AWS_REGION", "ap-south-1")
 )
 
-BUCKET_NAME = os.getenv("AWS_BUCKET_NAME", "praneeth-cloud-storage")
+BUCKET_NAME = os.getenv(
+    "AWS_BUCKET_NAME",
+    "praneeth-cloud-storage"
+)
 
-# -----------------------------
+
+# ============================================================
 # Home
-# -----------------------------
+# ============================================================
 
 @app.route("/")
 def home():
     return render_template("home.html")
 
 
-# -----------------------------
+# ============================================================
 # Register
-# -----------------------------
+# ============================================================
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -56,37 +63,46 @@ def register():
         email = request.form["email"]
         password = request.form["password"]
 
-        cursor = mysql.connection.cursor()
+        try:
+            cursor = mysql.connection.cursor()
 
-        cursor.execute(
-            "SELECT * FROM users WHERE email=%s",
-            (email,)
-        )
+            # Check whether email already exists
+            cursor.execute(
+                "SELECT * FROM users WHERE email=%s",
+                (email,)
+            )
 
-        user = cursor.fetchone()
+            user = cursor.fetchone()
 
-        if user:
+            if user:
+                cursor.close()
+                return "Email already registered!"
+
+            # Hash password before storing it
+            hashed_password = generate_password_hash(password)
+
+            cursor.execute(
+                """
+                INSERT INTO users(name, email, password)
+                VALUES(%s, %s, %s)
+                """,
+                (name, email, hashed_password)
+            )
+
+            mysql.connection.commit()
             cursor.close()
-            return "Email already registered!"
 
-        hashed_password = generate_password_hash(password)
+            return redirect(url_for("login"))
 
-        cursor.execute(
-            "INSERT INTO users(name, email, password) VALUES(%s, %s, %s)",
-            (name, email, hashed_password)
-        )
-
-        mysql.connection.commit()
-        cursor.close()
-
-        return redirect(url_for("login"))
+        except Exception as e:
+            return f"Database Error: {str(e)}"
 
     return render_template("register.html")
 
 
-# -----------------------------
+# ============================================================
 # Login
-# -----------------------------
+# ============================================================
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -96,32 +112,36 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
-        cursor = mysql.connection.cursor()
+        try:
+            cursor = mysql.connection.cursor()
 
-        cursor.execute(
-            "SELECT * FROM users WHERE email=%s",
-            (email,)
-        )
+            cursor.execute(
+                "SELECT * FROM users WHERE email=%s",
+                (email,)
+            )
 
-        user = cursor.fetchone()
+            user = cursor.fetchone()
 
-        cursor.close()
+            cursor.close()
 
-        if user and check_password_hash(user[3], password):
+            if user and check_password_hash(user[3], password):
 
-            session["user_id"] = user[0]
-            session["name"] = user[1]
+                session["user_id"] = user[0]
+                session["name"] = user[1]
 
-            return redirect(url_for("dashboard"))
+                return redirect(url_for("dashboard"))
 
-        return "Invalid Email or Password"
+            return "Invalid Email or Password"
+
+        except Exception as e:
+            return f"Database Error: {str(e)}"
 
     return render_template("login.html")
 
 
-# -----------------------------
+# ============================================================
 # Dashboard
-# -----------------------------
+# ============================================================
 
 @app.route("/dashboard")
 def dashboard():
@@ -129,31 +149,38 @@ def dashboard():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor()
+    try:
+        cursor = mysql.connection.cursor()
 
-    cursor.execute("""
-        SELECT id,
-               original_filename,
-               uploaded_at
-        FROM files
-        WHERE uploaded_by=%s
-        ORDER BY uploaded_at DESC
-    """, (session["user_id"],))
+        cursor.execute(
+            """
+            SELECT id,
+                   original_filename,
+                   uploaded_at
+            FROM files
+            WHERE uploaded_by=%s
+            ORDER BY uploaded_at DESC
+            """,
+            (session["user_id"],)
+        )
 
-    files = cursor.fetchall()
+        files = cursor.fetchall()
 
-    cursor.close()
+        cursor.close()
 
-    return render_template(
-        "dashboard.html",
-        name=session["name"],
-        files=files
-    )
+        return render_template(
+            "dashboard.html",
+            name=session["name"],
+            files=files
+        )
+
+    except Exception as e:
+        return f"Database Error: {str(e)}"
 
 
-# -----------------------------
+# ============================================================
 # Upload File
-# -----------------------------
+# ============================================================
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -168,16 +195,24 @@ def upload():
 
     try:
 
-        # Upload file to S3
+        # ----------------------------------------------------
+        # Upload file to AWS S3
+        # ----------------------------------------------------
+
         s3.upload_fileobj(
             uploaded_file,
             BUCKET_NAME,
             uploaded_file.filename
         )
 
+        # ----------------------------------------------------
+        # Store file information in MySQL
+        # ----------------------------------------------------
+
         cursor = mysql.connection.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO files
             (
                 filename,
@@ -188,15 +223,16 @@ def upload():
                 uploaded_by
             )
             VALUES(%s, %s, %s, %s, %s, %s)
-        """,
-        (
-            uploaded_file.filename,
-            uploaded_file.filename,
-            uploaded_file.filename,
-            uploaded_file.content_length,
-            uploaded_file.content_type,
-            session["user_id"]
-        ))
+            """,
+            (
+                uploaded_file.filename,
+                uploaded_file.filename,
+                uploaded_file.filename,
+                uploaded_file.content_length,
+                uploaded_file.content_type,
+                session["user_id"]
+            )
+        )
 
         mysql.connection.commit()
         cursor.close()
@@ -205,12 +241,12 @@ def upload():
 
     except Exception as e:
 
-        return str(e)
+        return f"Upload Error: {str(e)}"
 
 
-# -----------------------------
+# ============================================================
 # Download File
-# -----------------------------
+# ============================================================
 
 @app.route("/download/<int:file_id>")
 def download(file_id):
@@ -218,24 +254,31 @@ def download(file_id):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor()
-
-    cursor.execute("""
-        SELECT original_filename,
-               s3_key
-        FROM files
-        WHERE id=%s
-        AND uploaded_by=%s
-    """, (file_id, session["user_id"]))
-
-    file = cursor.fetchone()
-
-    cursor.close()
-
-    if not file:
-        return "File not found."
-
     try:
+
+        cursor = mysql.connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT original_filename,
+                   s3_key
+            FROM files
+            WHERE id=%s
+            AND uploaded_by=%s
+            """,
+            (file_id, session["user_id"])
+        )
+
+        file = cursor.fetchone()
+
+        cursor.close()
+
+        if not file:
+            return "File not found."
+
+        # ----------------------------------------------------
+        # Download file from S3
+        # ----------------------------------------------------
 
         stream = io.BytesIO()
 
@@ -255,12 +298,12 @@ def download(file_id):
 
     except Exception as e:
 
-        return str(e)
+        return f"Download Error: {str(e)}"
 
 
-# -----------------------------
+# ============================================================
 # Delete File
-# -----------------------------
+# ============================================================
 
 @app.route("/delete/<int:file_id>")
 def delete(file_id):
@@ -268,30 +311,39 @@ def delete(file_id):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor()
-
-    cursor.execute("""
-        SELECT s3_key
-        FROM files
-        WHERE id=%s
-        AND uploaded_by=%s
-    """, (file_id, session["user_id"]))
-
-    file = cursor.fetchone()
-
-    if not file:
-        cursor.close()
-        return "File not found."
-
     try:
 
-        # Delete from S3
+        cursor = mysql.connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT s3_key
+            FROM files
+            WHERE id=%s
+            AND uploaded_by=%s
+            """,
+            (file_id, session["user_id"])
+        )
+
+        file = cursor.fetchone()
+
+        if not file:
+            cursor.close()
+            return "File not found."
+
+        # ----------------------------------------------------
+        # Delete file from AWS S3
+        # ----------------------------------------------------
+
         s3.delete_object(
             Bucket=BUCKET_NAME,
             Key=file[0]
         )
 
-        # Delete from MySQL
+        # ----------------------------------------------------
+        # Delete file record from MySQL
+        # ----------------------------------------------------
+
         cursor.execute(
             "DELETE FROM files WHERE id=%s",
             (file_id,)
@@ -304,13 +356,12 @@ def delete(file_id):
 
     except Exception as e:
 
-        cursor.close()
-        return str(e)
+        return f"Delete Error: {str(e)}"
 
 
-# -----------------------------
+# ============================================================
 # Logout
-# -----------------------------
+# ============================================================
 
 @app.route("/logout")
 def logout():
@@ -320,9 +371,9 @@ def logout():
     return redirect(url_for("login"))
 
 
-# -----------------------------
-# Test S3
-# -----------------------------
+# ============================================================
+# Test AWS S3 Connection
+# ============================================================
 
 @app.route("/test-s3")
 def test_s3():
@@ -335,12 +386,17 @@ def test_s3():
 
     except Exception as e:
 
-        return str(e)
+        return f"S3 Error: {str(e)}"
 
 
-# -----------------------------
-# Run App
-# -----------------------------
+# ============================================================
+# Run Application
+# ============================================================
 
 if __name__ == "__main__":
-    app.run(debug=True)
+
+    app.run(
+        debug=True,
+        host="127.0.0.1",
+        port=5000
+    )
